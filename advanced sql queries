@@ -1,0 +1,225 @@
+-- 1. Query to find the top 5 vehicles with the highest average battery health over the last 6 months
+WITH RecentSensorData AS (
+    SELECT 
+        vehicle_id, 
+        battery_health, 
+        DATE_TRUNC('month', timestamp) AS month
+    FROM SensorsData
+    WHERE timestamp >= DATE_ADD(CURRENT_DATE, INTERVAL -6 MONTH)
+),
+AvgBatteryHealth AS (
+    SELECT 
+        vehicle_id, 
+        AVG(battery_health) AS avg_battery_health
+    FROM RecentSensorData
+    GROUP BY vehicle_id
+)
+SELECT 
+    v.vehicle_id, 
+    v.make, 
+    v.model, 
+    ab.avg_battery_health
+FROM AvgBatteryHealth ab
+JOIN Vehicles v ON ab.vehicle_id = v.vehicle_id
+ORDER BY ab.avg_battery_health DESC
+LIMIT 5;
+
+-- 2. Query to find the maintenance cost trend for each vehicle over the last year, aggregated monthly
+WITH MonthlyMaintenance AS (
+    SELECT 
+        vehicle_id, 
+        DATE_TRUNC('month', maintenance_date) AS maintenance_month, 
+        SUM(cost) AS monthly_cost
+    FROM MaintenanceLogs
+    WHERE maintenance_date >= DATE_ADD(CURRENT_DATE, INTERVAL -1 YEAR)
+    GROUP BY vehicle_id, DATE_TRUNC('month', maintenance_date)
+)
+SELECT 
+    v.vehicle_id, 
+    v.make, 
+    v.model, 
+    mm.maintenance_month, 
+    mm.monthly_cost
+FROM MonthlyMaintenance mm
+JOIN Vehicles v ON mm.vehicle_id = v.vehicle_id
+ORDER BY v.vehicle_id, mm.maintenance_month;
+
+-- 3. Query to calculate the average tire pressure by vehicle type, including standard deviation for variability
+WITH TirePressureStats AS (
+    SELECT 
+        vehicle_id, 
+        AVG(tire_pressure) AS avg_tire_pressure, 
+        STDDEV(tire_pressure) AS stddev_tire_pressure
+    FROM SensorsData
+    GROUP BY vehicle_id
+)
+SELECT 
+    v.vehicle_id, 
+    v.make, 
+    v.model, 
+    tps.avg_tire_pressure, 
+    tps.stddev_tire_pressure
+FROM TirePressureStats tps
+JOIN Vehicles v ON tps.vehicle_id = v.vehicle_id;
+
+-- 4. Query to find vehicles with the highest variance in motor temperature over the past year
+WITH MotorTempVariance AS (
+    SELECT 
+        vehicle_id, 
+        VAR_SAMP(motor_temperature) AS variance_motor_temp
+    FROM SensorsData
+    WHERE timestamp >= DATE_ADD(CURRENT_DATE, INTERVAL -1 YEAR)
+    GROUP BY vehicle_id
+)
+SELECT 
+    v.vehicle_id, 
+    v.make, 
+    v.model, 
+    mtv.variance_motor_temp
+FROM MotorTempVariance mtv
+JOIN Vehicles v ON mtv.vehicle_id = v.vehicle_id
+ORDER BY mtv.variance_motor_temp DESC;
+
+-- 5. Query to determine the impact of maintenance activities on battery health improvement
+WITH PreMaintenance AS (
+    SELECT 
+        ml.vehicle_id, 
+        AVG(sd.battery_health) AS avg_battery_health_pre
+    FROM MaintenanceLogs ml
+    JOIN SensorsData sd ON ml.vehicle_id = sd.vehicle_id AND sd.timestamp < ml.maintenance_date
+    GROUP BY ml.vehicle_id, ml.maintenance_date
+),
+PostMaintenance AS (
+    SELECT 
+        ml.vehicle_id, 
+        AVG(sd.battery_health) AS avg_battery_health_post
+    FROM MaintenanceLogs ml
+    JOIN SensorsData sd ON ml.vehicle_id = sd.vehicle_id AND sd.timestamp > ml.maintenance_date
+    GROUP BY ml.vehicle_id, ml.maintenance_date
+)
+SELECT 
+    pre.vehicle_id, 
+    v.make, 
+    v.model, 
+    pre.avg_battery_health_pre, 
+    post.avg_battery_health_post, 
+    (post.avg_battery_health_post - pre.avg_battery_health_pre) AS improvement
+FROM PreMaintenance pre
+JOIN PostMaintenance post ON pre.vehicle_id = post.vehicle_id
+JOIN Vehicles v ON pre.vehicle_id = v.vehicle_id
+ORDER BY improvement DESC;
+
+-- 6. Query to identify the correlation between odometer reading and maintenance cost
+WITH OdometerMaintenance AS (
+    SELECT 
+        v.vehicle_id, 
+        v.make, 
+        v.model, 
+        sd.odometer_reading, 
+        ml.cost
+    FROM Vehicles v
+    JOIN SensorsData sd ON v.vehicle_id = sd.vehicle_id
+    JOIN MaintenanceLogs ml ON v.vehicle_id = ml.vehicle_id
+    WHERE sd.timestamp = (SELECT MAX(timestamp) FROM SensorsData WHERE vehicle_id = v.vehicle_id)
+)
+SELECT 
+    om.vehicle_id, 
+    om.make, 
+    om.model, 
+    om.odometer_reading, 
+    om.cost, 
+    CORR(om.odometer_reading, om.cost) OVER () AS correlation
+FROM OdometerMaintenance om;
+
+-- 7. Query to analyze the predictive maintenance accuracy by comparing predicted and actual failures
+WITH PredictedFailures AS (
+    SELECT 
+        vehicle_id, 
+        predicted_failure_date, 
+        failure_probability
+    FROM PredictiveMaintenance
+),
+ActualFailures AS (
+    SELECT 
+        vehicle_id, 
+        MIN(maintenance_date) AS actual_failure_date
+    FROM MaintenanceLogs
+    WHERE issue_type = 'failure'
+    GROUP BY vehicle_id
+)
+SELECT 
+    pf.vehicle_id, 
+    v.make, 
+    v.model, 
+    pf.predicted_failure_date, 
+    af.actual_failure_date, 
+    DATEDIFF(af.actual_failure_date, pf.predicted_failure_date) AS date_diff,
+    pf.failure_probability
+FROM PredictedFailures pf
+JOIN ActualFailures af ON pf.vehicle_id = af.vehicle_id
+JOIN Vehicles v ON pf.vehicle_id = v.vehicle_id
+ORDER BY date_diff ASC;
+
+-- 8. Query to find the top 5 vehicles with the most frequent maintenance issues and their associated costs
+WITH MaintenanceFrequency AS (
+    SELECT 
+        vehicle_id, 
+        COUNT(*) AS maintenance_count, 
+        SUM(cost) AS total_cost
+    FROM MaintenanceLogs
+    GROUP BY vehicle_id
+)
+SELECT 
+    mf.vehicle_id, 
+    v.make, 
+    v.model, 
+    mf.maintenance_count, 
+    mf.total_cost
+FROM MaintenanceFrequency mf
+JOIN Vehicles v ON mf.vehicle_id = v.vehicle_id
+ORDER BY mf.maintenance_count DESC
+LIMIT 5;
+
+-- 9. Query to calculate the percentage of time each vehicle's battery health was below a critical threshold over the past year
+WITH BatteryHealthStats AS (
+    SELECT 
+        vehicle_id, 
+        COUNT(*) AS total_readings, 
+        SUM(CASE WHEN battery_health < 50 THEN 1 ELSE 0 END) AS critical_readings
+    FROM SensorsData
+    WHERE timestamp >= DATE_ADD(CURRENT_DATE, INTERVAL -1 YEAR)
+    GROUP BY vehicle_id
+)
+SELECT 
+    bhs.vehicle_id, 
+    v.make, 
+    v.model, 
+    bhs.total_readings, 
+    bhs.critical_readings, 
+    (bhs.critical_readings / bhs.total_readings) * 100 AS critical_percentage
+FROM BatteryHealthStats bhs
+JOIN Vehicles v ON bhs.vehicle_id = v.vehicle_id
+ORDER BY critical_percentage DESC;
+
+-- 10. Query to generate a report on the average motor temperature and battery health for each make and model, including the standard deviation for variability
+WITH MotorBatteryStats AS (
+    SELECT 
+        vehicle_id, 
+        AVG(motor_temperature) AS avg_motor_temp, 
+        STDDEV(motor_temperature) AS stddev_motor_temp, 
+        AVG(battery_health) AS avg_battery_health, 
+        STDDEV(battery_health) AS stddev_battery_health
+    FROM SensorsData
+    GROUP BY vehicle_id
+)
+SELECT 
+    v.make, 
+    v.model, 
+    AVG(mbs.avg_motor_temp) AS avg_motor_temp, 
+    AVG(mbs.stddev_motor_temp) AS stddev_motor_temp, 
+    AVG(mbs.avg_battery_health) AS avg_battery_health, 
+    AVG(mbs.stddev_battery_health) AS stddev_battery_health
+FROM MotorBatteryStats mbs
+JOIN Vehicles v ON mbs.vehicle_id = v.vehicle_id
+GROUP BY v.make, v.model
+ORDER BY avg_motor_temp DESC, avg_battery_health DESC;

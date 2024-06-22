@@ -1,0 +1,92 @@
+CREATE TABLE Vehicles (
+    vehicle_id INT PRIMARY KEY,
+    make VARCHAR(50),
+    model VARCHAR(50),
+    year INT,
+    battery_capacity FLOAT,
+    mileage FLOAT
+);
+
+INSERT INTO Vehicles (vehicle_id, make, model, year, battery_capacity, mileage) VALUES
+(1, 'Tesla', 'Model S', 2020, 100, 15000),
+(2, 'Nissan', 'Leaf', 2019, 40, 22000),
+(3, 'Chevrolet', 'Bolt EV', 2021, 66, 8000),
+(4, 'Tesla', 'Model 3', 2020, 75, 20000),
+(5, 'Nissan', 'Leaf', 2020, 40, 15000),
+(6, 'Chevrolet', 'Bolt EV', 2020, 66, 12000),
+(7, 'Tesla', 'Model X', 2021, 100, 5000),
+(8, 'Nissan', 'Leaf', 2021, 40, 10000),
+(9, 'Chevrolet', 'Bolt EV', 2019, 66, 30000),
+(10, 'Tesla', 'Model S', 2018, 100, 40000);
+
+
+
+
+CREATE TABLE SensorsData (
+    sensor_id INT PRIMARY KEY,
+    vehicle_id INT,
+    timestamp DATETIME,
+    battery_health FLOAT,
+    motor_temperature FLOAT,
+    tire_pressure FLOAT,
+    odometer_reading FLOAT,
+    FOREIGN KEY (vehicle_id) REFERENCES Vehicles(vehicle_id)
+);
+
+INSERT INTO SensorsData (sensor_id, vehicle_id, timestamp, battery_health, motor_temperature, tire_pressure, odometer_reading) VALUES
+(101, 1, '2023-06-01 08:00:00', 95, 75, 32, 15000),
+(102, 2, '2023-06-01 08:05:00', 85, 80, 30, 22000),
+(103, 3, '2023-06-01 08:10:00', 90, 70, 35, 8000),
+(104, 4, '2023-06-01 08:15:00', 88, 72, 34, 20000),
+(105, 5, '2023-06-01 08:20:00', 92, 76, 32, 15000),
+(106, 6, '2023-06-01 08:25:00', 87, 74, 33, 12000),
+(107, 7, '2023-06-01 08:30:00', 94, 73, 31, 5000),
+(108, 8, '2023-06-01 08:35:00', 86, 77, 30, 10000),
+(109, 9, '2023-06-01 08:40:00', 89, 78, 35, 30000),
+(110, 10, '2023-06-01 08:45:00', 91, 75, 32, 40000);
+
+
+CREATE TABLE MaintenanceLogs (
+    maintenance_id INT PRIMARY KEY,
+    vehicle_id INT,
+    maintenance_date DATE,
+    maintenance_type VARCHAR(100),
+    description TEXT,
+    cost FLOAT,
+    FOREIGN KEY (vehicle_id) REFERENCES Vehicles(vehicle_id)
+);
+
+INSERT INTO MaintenanceLogs (maintenance_id, vehicle_id, maintenance_date, maintenance_type, description, cost) VALUES
+(201, 1, '2023-05-15', 'Battery Check', 'Routine battery health check', 150),
+(202, 2, '2023-05-20', 'Tire Replacement', 'Replaced front tires', 300),
+(203, 3, '2023-06-01', 'Motor Service', 'Motor temperature issue', 500),
+(204, 4, '2023-06-05', 'Oil Change', 'Routine oil change', 100),
+(205, 5, '2023-06-10', 'Brake Check', 'Routine brake check', 200),
+(206, 6, '2023-06-15', 'Battery Replacement', 'Replaced battery', 1000),
+(207, 7, '2023-06-20', 'Tire Rotation', 'Routine tire rotation', 50),
+(208, 8, '2023-06-25', 'Transmission Service', 'Transmission issue', 800),
+(209, 9, '2023-06-30', 'Suspension Check', 'Routine suspension check', 400),
+(210, 10, '2023-07-05', 'Battery Check', 'Routine battery health check', 150);
+
+
+CREATE TABLE PredictiveMaintenance (
+    prediction_id INT PRIMARY KEY,
+    vehicle_id INT,
+    prediction_date DATE,
+    predicted_failure_date DATE,
+    component VARCHAR(100),
+    failure_probability FLOAT,
+    FOREIGN KEY (vehicle_id) REFERENCES Vehicles(vehicle_id)
+);
+
+INSERT INTO PredictiveMaintenance (prediction_id, vehicle_id, prediction_date, predicted_failure_date, component, failure_probability) VALUES
+(301, 1, '2023-06-01', '2023-08-01', 'Battery', 0.85),
+(302, 2, '2023-06-01', '2023-09-15', 'Tire', 0.70),
+(303, 3, '2023-06-01', '2023-07-20', 'Motor', 0.90),
+(304, 4, '2023-06-01', '2023-10-01', 'Transmission', 0.60),
+(305, 5, '2023-06-01', '2023-07-25', 'Brake', 0.75),
+(306, 6, '2023-06-01', '2023-09-10', 'Battery', 0.80),
+(307, 7, '2023-06-01', '2023-08-15', 'Tire', 0.65),
+(308, 8, '2023-06-01', '2023-07-30', 'Motor', 0.85),
+(309, 9, '2023-06-01', '2023-08-20', 'Suspension', 0.70),
+(310, 10, '2023-06-01', '2023-10-05', 'Battery', 0.90);

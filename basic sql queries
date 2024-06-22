@@ -1,0 +1,75 @@
+-- 1. Select all records from the Vehicles table
+SELECT * FROM Vehicles;
+
+-- 2. Select the make and model of all vehicles manufactured in 2020
+SELECT make, model FROM Vehicles WHERE year = 2020;
+
+-- 3. Count the number of vehicles with a battery capacity greater than 50 kWh
+SELECT COUNT(*) AS vehicle_count FROM Vehicles WHERE battery_capacity > 50;
+
+-- 4. Select vehicle details and their latest sensor data
+SELECT v.vehicle_id, v.make, v.model, v.year, s.battery_health, s.motor_temperature, s.timestamp
+FROM Vehicles v
+JOIN SensorsData s ON v.vehicle_id = s.vehicle_id
+WHERE s.timestamp = (SELECT MAX(timestamp) FROM SensorsData WHERE vehicle_id = v.vehicle_id);
+
+-- 5. List all maintenance logs for Tesla vehicles
+SELECT ml.*
+FROM MaintenanceLogs ml
+JOIN Vehicles v ON ml.vehicle_id = v.vehicle_id
+WHERE v.make = 'Tesla';
+
+-- 6. Get the average battery health for each vehicle
+SELECT vehicle_id, AVG(battery_health) AS avg_battery_health
+FROM SensorsData
+GROUP BY vehicle_id;
+
+-- 7. Find vehicles that have had more than 2 maintenance events
+SELECT vehicle_id, COUNT(*) AS maintenance_count
+FROM MaintenanceLogs
+GROUP BY vehicle_id
+HAVING COUNT(*) > 2;
+
+-- 8. List all vehicles with predictive maintenance due within the next 2 months
+SELECT pm.*, v.make, v.model
+FROM PredictiveMaintenance pm
+JOIN Vehicles v ON pm.vehicle_id = v.vehicle_id
+WHERE pm.predicted_failure_date BETWEEN CURRENT_DATE AND DATE_ADD(CURRENT_DATE, INTERVAL 2 MONTH);
+
+-- 9. Calculate the total cost of maintenance for each vehicle
+SELECT vehicle_id, SUM(cost) AS total_maintenance_cost
+FROM MaintenanceLogs
+GROUP BY vehicle_id;
+
+-- 10. Find the average tire pressure for each vehicle from the SensorsData
+SELECT vehicle_id, AVG(tire_pressure) AS avg_tire_pressure
+FROM SensorsData
+GROUP BY vehicle_id;
+
+-- 11. List the vehicles that have had a battery health below 80 at any point
+SELECT DISTINCT v.vehicle_id, v.make, v.model
+FROM Vehicles v
+JOIN SensorsData s ON v.vehicle_id = s.vehicle_id
+WHERE s.battery_health < 80;
+
+-- 12. Select the latest maintenance log for each vehicle
+SELECT ml.*
+FROM MaintenanceLogs ml
+WHERE ml.maintenance_date = (SELECT MAX(maintenance_date) FROM MaintenanceLogs WHERE vehicle_id = ml.vehicle_id);
+
+-- 13. Get the total number of vehicles by make
+SELECT make, COUNT(*) AS total_vehicles
+FROM Vehicles
+GROUP BY make;
+
+-- 14. Find vehicles with an odometer reading over 20,000 miles in the latest sensor data
+SELECT v.vehicle_id, v.make, v.model, s.odometer_reading
+FROM Vehicles v
+JOIN SensorsData s ON v.vehicle_id = s.vehicle_id
+WHERE s.timestamp = (SELECT MAX(timestamp) FROM SensorsData WHERE vehicle_id = v.vehicle_id) AND s.odometer_reading > 20000;
+
+-- 15. List all vehicles that have predictive maintenance with failure probability above 80%
+SELECT pm.*, v.make, v.model
+FROM PredictiveMaintenance pm
+JOIN Vehicles v ON pm.vehicle_id = v.vehicle_id
+WHERE pm.failure_probability > 0.80;
